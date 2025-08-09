@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全屏循环视频播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+        }
+        
+        #video-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        #video-player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: opacity 0.5s ease;
+            background: rgba(0, 0, 0, 0.85);
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .overlay-text {
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            opacity: 0.8;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.9);
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .tap-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            z-index: 3;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        
+        /* 响应式设计 */
+        @media (orientation: portrait) {
+            #video-player {
+                object-fit: cover;
+            }
+        }
+        
+        @media (orientation: landscape) {
+            #video-player {
+                object-fit: cover;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .overlay-text {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="vignette"></div>
+    
+    <div class="overlay" id="overlay">
+        <div class="loading-spinner"></div>
+        <div class="overlay-text" id="overlay-text">视频加载中...</div>
+    </div>
+    
+    <div id="video-container">
+        <video id="video-player" loop playsinline muted>
+            <!-- 这里使用一个示例视频，实际应用中应替换为您自己的视频URL -->
+            <source src="生日快乐猫.mp4" type="video/mp4">
+            您的浏览器不支持HTML5视频播放
+        </video>
+    </div>
+
+    <div class="tap-hint" id="tap-hint">点击屏幕祝玄玄生日快乐</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('video-player');
+            const overlay = document.getElementById('overlay');
+            const overlayText = document.getElementById('overlay-text');
+            const tapHint = document.getElementById('tap-hint');
+            
+            // 初始状态
+            tapHint.style.display = 'none';
+            
+            // 视频加载完成后隐藏加载指示器
+            video.addEventListener('loadeddata', function() {
+                overlayText.textContent = "点击屏幕祝玄玄生日快乐";
+                tapHint.style.display = 'block';
+            });
+            
+            // 处理用户交互以开始播放
+            function startPlayback() {
+                // 尝试播放视频
+                video.play().then(() => {
+                    // 播放成功 - 隐藏覆盖层
+                    overlay.style.opacity = '0';
+                    tapHint.style.display = 'none';
+                    
+                    setTimeout(() => {
+                        overlay.style.display = 'none';
+                    }, 500);
+                }).catch(error => {
+                    // 播放失败 - 显示错误信息
+                    overlayText.textContent = "播放失败: 请点击屏幕重试";
+                    console.error("播放失败:", error);
+                });
+            }
+            
+            // 添加触摸事件监听器
+            document.body.addEventListener('touchstart', function firstTouch() {
+                // 移除这个一次性监听器
+                document.body.removeEventListener('touchstart', firstTouch);
+                
+                // 设置视频为静音（根据浏览器策略）
+                video.muted = true;
+                
+                // 尝试播放
+                startPlayback();
+            }, { once: true });
+            
+            // 添加点击事件监听器（作为后备）
+            document.body.addEventListener('click', function firstClick() {
+                // 移除这个一次性监听器
+                document.body.removeEventListener('click', firstClick);
+                
+                // 设置视频为静音（根据浏览器策略）
+                video.muted = false;
+                
+                // 尝试播放
+                startPlayback();
+            }, { once: true });
+            
+            // 视频结束时重新播放（确保循环）
+            video.addEventListener('ended', function() {
+                video.currentTime = 0;
+                video.play();
+            });
+            
+            // 处理全屏变化
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+            
+            function handleFullscreenChange() {
+                if (!document.fullscreenElement && 
+                    !document.webkitFullscreenElement && 
+                    !document.mozFullScreenElement &&
+                    !document.msFullscreenElement) {
+                    // 退出全屏时确保视频继续播放
+                    video.play();
+                }
+            }
+            
+            // 双击切换全屏
+            video.addEventListener('dblclick', toggleFullscreen);
+            
+            function toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    if (video.requestFullscreen) {
+                        video.requestFullscreen();
+                    } else if (video.mozRequestFullScreen) {
+                        video.mozRequestFullScreen();
+                    } else if (video.webkitRequestFullscreen) {
+                        video.webkitRequestFullscreen();
+                    } else if (video.msRequestFullscreen) {
+                        video.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
